@@ -1,0 +1,68 @@
+# Ignore dynaconf secret files
+.secrets.*
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+venv/
+env/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Log files
+*.log
+
+# MacOS system files
+.DS_Store
+
+# Python environment files
+*.env
+*.venv
+*.virtualenv
+
+# Package files
+*.egg
+*.egg-info/
+dist/
+build/
+*.wheel
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+noxfile_config.json
+.coverage
+*.cover
+.cache
+.pytest_cache/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+
+# PyInstaller
+*.spec
+
+# SQLite database
+*.sqlite3
+
+# AWS credentials
+*.pem
+
+# PyCharm project files
+.idea/
+
+# VS Code settings
+.vscode/
+
+# Spyder project files
+.spyderproject
+.spyproject
+**/cache
+*.lock
+
+# Data
+**/data/

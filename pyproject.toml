@@ -1,0 +1,125 @@
+[tool.poetry]
+name = "finance-health-py"
+version = "0.1.0"
+description = ""
+authors = ["Marc Domènech i Vila <marcdomenechvila@gmail.com>"]
+readme = "README.md"
+packages = [{include = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.13"
+streamlit = "^1.41.1"
+matplotlib = "^3.10.0"
+plotly = "^5.24.1"
+watchdog = "^6.0.0"
+streamlit-autorefresh = "^1.0.1"
+
+[tool.poetry.group.QA.dependencies]
+configargparse = "^1.7"
+nbstripout = "^0.8.0"
+commitizen = "^3.30.1"
+vulture = "^2.13"
+mypy = "^1.13.0"
+cffi = "^1.17.1"
+cryptography = "^43.0.3"
+numpydoc = "^1.8.0"
+ruff = "^0.7.3"
+pre-commit-hooks = "^5.0.0"
+types-toml = "^0.10.8.20240310"
+
+
+
+[tool.poetry.group.dev.dependencies]
+pre-commit = "^4.0.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+
+## TEMPLATE CONFIGURACIONES HERRAMIENTAS PRE-COMMIT
+# Ruff
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    # Docstrings
+    # "D", "D107", "D402", "D413", "D415", "D416", "D417",
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
+ignore = [
+    "D413",
+    "F841", # Unused variables
+    "E731", # Use of lambda functions
+    "B028", # Logging level
+    "B026", # Star-arg unpacking
+    "SIM105",
+    "E402",
+    "SIM108",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Ignore all directories named `tests`.
+"tests/**" = ["D"]
+# Ignore all files that end in `_test.py`.
+"*_test.py" = ["D"]
+"docs/**" = ["D", "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",]
+
+#[tool.ruff.lint.pydocstyle]
+#convention = "numpy"
+
+[tool.ruff.lint.pycodestyle]
+max-line-length = 100
+
+[tool.ruff.format]
+docstring-code-format = true
+docstring-code-line-length = 60
+
+# MyPy
+# Lista de errores de mypy: https://mypy.readthedocs.io/en/stable/error_code_list.html
+[tool.mypy]
+disable_error_code = ['misc', 'operator']
+exclude=["^docs/"]
+
+# Numpydoc
+[tool.numpydoc_validation]
+checks = [
+    "all",   # report on all checks, except the below
+    "EX01",
+    "SA01",
+    "ES01",
+    "SS02",
+    "RT02",
+    "GL08",
+]
+
+# Vulture
+[tool.vulture]
+min_confidence = 100
+exclude = ["**/*file*.py", "docs/**", "**/.venv", "**/venv", ".venv"]
+make_whitelist = true
+# paths = ["mlops"]
+sort_by_size = true
+verbose = false
