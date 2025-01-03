@@ -19,7 +19,7 @@ DEBT_COLUMNS = [
 ]
 
 
-def prep_debts_df(debts_df: pd.DataFrame) -> pd.DataFrame:
+def prep_debts_df(debts_df: pd.DataFrame, reset: bool = False) -> pd.DataFrame:
     """
     Prepares the debts dataframe by converting the columns to their appropriate data types.
 
@@ -27,6 +27,8 @@ def prep_debts_df(debts_df: pd.DataFrame) -> pd.DataFrame:
     ----------
     debts_df : pd.DataFrame
         A pandas dataframe containing debt information.
+    reset : bool
+        Whereas "pagat" column has to be reset.
 
     Returns
     -------
@@ -36,6 +38,10 @@ def prep_debts_df(debts_df: pd.DataFrame) -> pd.DataFrame:
 
     # Convert columns to specified data types using the DEBT_COLUMNS dictionary
     debts_df = debts_df.astype(dict(DEBT_COLUMNS))
+
+    # Reset "pagat"
+    if reset:
+        debts_df["pagat"] = False
 
     return debts_df
 
@@ -113,12 +119,14 @@ def load_data(current_date: date, create: None | str = "empty"):
     elif create is None:
         st.session_state.debts_df = None
     elif create == "empty":
-        st.session_state.debts_df = pd.DataFrame(columns=["nom", "total", "tipus"])
+        st.session_state.debts_df = pd.DataFrame(
+            columns=[col for col, _ in DEBT_COLUMNS]
+        )
         common.export_csv(st.session_state.debts_df, debts_filepath)
         st.toast("A new empty debts file has been created", icon=":material/info:")
     elif create == "duplicate" and prev_debts_filepath.exists():
         st.session_state.debts_df = common.load_csv(filepath=prev_debts_filepath)
-        st.session_state.debts_df = prep_debts_df(st.session_state.debts_df)
+        st.session_state.debts_df = prep_debts_df(st.session_state.debts_df, reset=True)
         common.export_csv(st.session_state.debts_df, debts_filepath)
         st.toast(
             "A new debts file has been created based on "

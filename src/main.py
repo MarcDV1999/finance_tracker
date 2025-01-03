@@ -6,12 +6,13 @@ import src.utils.common as common
 
 # count = st_autorefresh(interval=2000, key="fizzbuzzcounter")
 
-# st.session_state.current_month = datetime.now().strftime("%B")
-st.session_state.current_month = common.get_month_name(
-    datetime.now().month
-).capitalize()
-st.session_state.current_year = str(datetime.now().year)
-st.session_state.current_date = datetime.now()
+if "current_date" not in st.session_state:
+    st.session_state.current_date = datetime.now()
+    st.session_state.current_month = common.get_month_name(
+        st.session_state.current_date.month
+    ).capitalize()
+    st.session_state.current_year = str(st.session_state.current_date.year)
+
 
 pages = {
     "Your account": [

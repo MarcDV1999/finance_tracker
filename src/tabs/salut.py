@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
@@ -445,7 +445,7 @@ def show():
     col1, col2 = st.columns(2)
     with col1:
         current_date = st.date_input(
-            "Quin mes vols mirar?", datetime.now(), format="DD/MM/YYYY"
+            "Quin mes vols mirar?", st.session_state.current_date, format="DD/MM/YYYY"
         )
         st.session_state.current_month = common.get_month_name(
             current_date.month
