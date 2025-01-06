@@ -1,5 +1,6 @@
 # Ignore dynaconf secret files
 .secrets.*
+**secrets.toml
 
 # Python bytecode
 __pycache__/
@@ -66,3 +67,4 @@ noxfile_config.json
 
 # Data
 **/data/
+**/*.db

@@ -1,22 +1,20 @@
 import streamlit as st
 
 
-def login_section():
-    """Login Section."""
-
-    with st.form("login_form"):
+def signin_section():
+    with st.form("signin_form"):
+        name = st.text_input("Nom")
         username = st.text_input("Usuari")
         pwd = st.text_input("Contrassenya")
-        if st.form_submit_button("Inicia sessió"):
+        if st.form_submit_button("Registra't"):
             user = st.session_state.db.get_user(username=username)
-            if user is None:
-                st.error("No existeix l'usuari")
-            elif pwd != user.password:
-                st.error("Contrassenya incorrecta")
+            if user:
+                st.error("L'usuari ja existeix")
             else:
-                st.success("Log In")
+                st.session_state.db.add_user(name=name, username=username, password=pwd)
+                st.success("Usuari registrat!")
                 st.session_state.username = username
-                st.session_state.name = user.name.capitalize()
+                st.session_state.name = name.capitalize()
                 st.switch_page(st.Page("tabs/salut.py"))
 
 
@@ -28,9 +26,9 @@ def show():
     user to select a month, load the corresponding data, and either view existing debts
     or create a new debt sheet if no data is available.
     """
-    st.title("Inicia Sessió")
+    st.title("Registre")
 
-    login_section()
+    signin_section()
 
 
 show()

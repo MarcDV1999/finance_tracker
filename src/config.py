@@ -17,6 +17,11 @@ CURRENT_MONTH_FOLDER.mkdir(exist_ok=True, parents=True)
 # BACKUP FOLDER
 BACKUP_FOLDER = ...
 
+# DATABASE
+DATABASE_URL = "db/database.db"
+DATABASE_FILEPATH = BASE_DIR / DATABASE_URL
+DATABASE_FILEPATH.parent.mkdir(exist_ok=True, parents=True)
+
 # Colors
 COLOR_RED = "#ed4747"
 COLOR_YELLOW = "#edc947"

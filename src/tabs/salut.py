@@ -27,17 +27,70 @@ def prep_expenses_df(expenses_df: pd.DataFrame) -> pd.DataFrame:
     Notes
     -----
     The function enforces the following column data types:
-    - "nom" : str
-    - "total" : float
-    - "tipus" : str
+    - "concept" : str
+    - "amount" : float
+    - "category" : str
     """
     # Ensure the DataFrame columns have the expected data types.
-    expenses_df = expenses_df.astype({"nom": str, "total": float, "tipus": str})
+    expenses_df = expenses_df.astype({"concept": str, "amount": float, "category": str})
 
     return expenses_df
 
 
 def load_data(current_date: date, create: None | str = "empty"):
+    """
+    Loads and initializes session data for expense tracking.
+
+    Parameters
+    ----------
+    current_date : date
+        The current date for which expense data should be loaded.
+    create : str or None, optional
+        Specifies the action to take if no expense file exists for the current date.
+        Options include:
+        - "empty" (default): Create an empty file.
+        - "duplicate": Duplicate data from the previous month.
+        - None: Do not create any file.
+
+    Notes
+    -----
+    Updates the Streamlit session state with the following:
+    - Previous expenses filepath and associated metadata.
+    - Current expenses filepath and associated metadata.
+    - Loads the corresponding DataFrames into session state.
+    """
+
+    st.session_state.expenses_df = st.session_state.db.get_user_expenses(
+        username=st.session_state.username,
+        date=current_date,
+    )
+
+    st.session_state.prev_expenses_df, prev_date = (
+        st.session_state.db.get_prev_user_expenses(
+            username=st.session_state.username,
+            date=current_date,
+        )
+    )
+
+    # Update prev_date
+    if prev_date:
+        st.session_state.prev_month_name = prev_date.strftime("%B").lower()
+        st.session_state.prev_year = str(prev_date.year)
+        st.session_state.prev_date = prev_date
+    else:
+        st.session_state.prev_month_name = None
+        st.session_state.prev_year = None
+        st.session_state.prev_date = None
+
+    # Create expenses sheet
+
+    print(st.session_state.expenses_df)
+    print(st.session_state.prev_expenses_df)
+    print()
+    print()
+
+
+def load_data2(current_date: date, create: None | str = "empty"):
     """
     Loads and initializes session data for expense tracking.
 
@@ -83,7 +136,7 @@ def load_data(current_date: date, create: None | str = "empty"):
     else:
         # Initialize an empty DataFrame if no previous expenses are found.
         st.session_state.prev_expenses_df = pd.DataFrame(
-            columns=["nom", "total", "tipus"]
+            columns=["concept", "amount", "category"]
         )
         st.toast("No hi ha despeses de mesos passats!", icon=":material/warning:")
 
@@ -106,7 +159,9 @@ def load_data(current_date: date, create: None | str = "empty"):
         st.session_state.expenses_df = None
     elif create == "empty":
         logger_all.info("Es crea buit")
-        st.session_state.expenses_df = pd.DataFrame(columns=["nom", "total", "tipus"])
+        st.session_state.expenses_df = pd.DataFrame(
+            columns=["concept", "amount", "category"]
+        )
         common.export_csv(st.session_state.expenses_df, expenses_filepath)
         st.toast("S'ha creat un nou full de despeses buit", icon=":material/info:")
     elif create == "duplicate" and prev_expenses_filepath.exists():
@@ -130,7 +185,7 @@ def plot_health(df: pd.DataFrame, salary: int):
     Parameters
     ----------
     df : pd.DataFrame
-        DataFrame containing expense data with columns 'tipus' (type) and 'total' (amount).
+        DataFrame containing expense data with columns "category" (type) and "amount" (amount).
     salary : int
         The total monthly salary, used to calculate savings.
 
@@ -141,21 +196,21 @@ def plot_health(df: pd.DataFrame, salary: int):
     colors for each type.
     """
     # Calculate savings and add it as a new row.
-    estalvi_row = dict(tipus="estalvi", total=salary - df["total"].sum())
+    estalvi_row = dict(tipus="estalvi", total=salary - df["amount"].sum())
     df = pd.concat([df, pd.DataFrame([estalvi_row])], ignore_index=True)
 
-    # Round the 'total' column to avoid decimals.
-    df["total"] = df["total"].round(0)
+    # Round the "amount" column to avoid decimals.
+    df["amount"] = df["amount"].round(0)
 
-    # Group data by 'tipus' and sum totals.
-    df_grouped = df.groupby("tipus", as_index=False)["total"].sum()
+    # Group data by "category" and sum totals.
+    df_grouped = df.groupby("category", as_index=False)["amount"].sum()
 
     # Ensure the categories are displayed in a specific order.
     order = list(EXPENSE_TYPES.keys()) + ["estalvi"]
-    df_grouped["tipus"] = pd.Categorical(
-        df_grouped["tipus"], categories=order, ordered=True
+    df_grouped["category"] = pd.Categorical(
+        df_grouped["category"], categories=order, ordered=True
     )
-    df_grouped = df_grouped.sort_values("tipus")
+    df_grouped = df_grouped.sort_values("category")
 
     # Create a color map based on expense types.
     color_map = {
@@ -165,15 +220,20 @@ def plot_health(df: pd.DataFrame, salary: int):
     # Generate the bar chart using Plotly.
     fig = px.bar(
         df_grouped,
-        x="total",
+        x="amount",
         y=["Despeses"] * len(df_grouped),  # Placeholder for consistent formatting.
         orientation="h",
         title="Despeses",
-        labels={"total": "Total (€)", "tipus": "Tipus de despesa", "x": "", "y": ""},
-        color="tipus",
+        labels={
+            "amount": "Total (€)",
+            "category": "Tipus de despesa",
+            "x": "",
+            "y": "",
+        },
+        color="category",
         height=300,
         barmode="stack",
-        text="total",
+        text="amount",
         color_discrete_map=color_map,
     )
 
@@ -193,7 +253,7 @@ def show_editable_df(df: pd.DataFrame, tipus: str):
     Parameters
     ----------
     df : pd.DataFrame
-        DataFrame containing expense data with columns 'nom', 'total', and 'tipus'.
+        DataFrame containing expense data with columns 'nom', "amount", and "category".
     tipus : str
         The expense type to filter and display.
 
@@ -204,13 +264,13 @@ def show_editable_df(df: pd.DataFrame, tipus: str):
     reloads the updated data.
     """
     # Capitalize the 'nom' column for consistency.
-    df["nom"] = df["nom"].str.capitalize()
+    df["concept"] = df["concept"].str.capitalize()
 
     # Filter the DataFrame to only include rows of the specified type.
-    mask = df["tipus"] == tipus
+    mask = df["category"] == tipus
 
     # Display the total amount for the selected type.
-    st.markdown(f"**Total: :blue[{df.loc[mask, 'total'].sum()} €]**")
+    st.markdown(f"**Total: :blue[{df.loc[mask, "amount"].sum()} €]**")
 
     # Show an editable table using Streamlit's data editor.
     edited_df = st.data_editor(
@@ -218,14 +278,16 @@ def show_editable_df(df: pd.DataFrame, tipus: str):
         key=f"{tipus}_editable_df",
         hide_index=True,
         column_config={
-            "nom": st.column_config.TextColumn("Concepte", max_chars=50, pinned=True),
-            "total": st.column_config.NumberColumn(
+            "concept": st.column_config.TextColumn(
+                "Concepte", max_chars=50, pinned=True
+            ),
+            "amount": st.column_config.NumberColumn(
                 "Total (€)",
                 min_value=1,
                 step=1,
                 format="%d €",
             ),
-            "tipus": None,  # 'tipus' is not editable in this table.
+            "category": None,  # "category" is not editable in this table.
         },
         use_container_width=True,
     )
@@ -252,7 +314,7 @@ def new_expenses_sheet():
         f"{st.session_state.prev_month_name} de {st.session_state.prev_year}"
     )
 
-    if st.session_state.prev_expenses_filepath is None:
+    if st.session_state.prev_date is None:
         col1, col2 = st.columns(2)
         with col1:
             if st.button(
@@ -318,8 +380,8 @@ def summary():
 
     with col2:
         # Total Despeses
-        current_despeses = expenses_df["total"].sum()
-        prev_despeses = prev_expenses_df["total"].sum()
+        current_despeses = expenses_df["amount"].sum()
+        prev_despeses = prev_expenses_df["amount"].sum()
         delta = (
             None
             if prev_expenses_df.empty
@@ -335,8 +397,8 @@ def summary():
 
     with col3:
         # Total Estalvi
-        current_estalvi = salary - expenses_df["total"].sum()
-        prev_estalvi = salary - prev_expenses_df["total"].sum()
+        current_estalvi = salary - expenses_df["amount"].sum()
+        prev_estalvi = salary - prev_expenses_df["amount"].sum()
         delta = (
             None if prev_expenses_df.empty else round(current_estalvi - prev_estalvi, 2)
         )
@@ -380,56 +442,77 @@ def details():
 def add_expense():
     with st.form("add_despesa"):
         st.subheader("🆕 Afegir Despesa", divider="green")
-        nom = st.text_input("Concepte de la despesa")
-        col1, col2 = st.columns(2)
-        with col1:
-            total = st.number_input("Total (€)", min_value=1, step=1)
-        with col2:
-            tipus_list = set(EXPENSE_TYPES.keys()) - set(["estalvi"])
-            tipus_list = list(map(str.capitalize, tipus_list))
-            tipus = st.selectbox("Tipus", tipus_list).lower()
+        on = st.toggle("Duplicar mes sencer")
 
-        add = st.form_submit_button("Afegir", type="primary", icon=":material/add:")
+        if on:
+            # Formulario para ingresar gastos
+            with st.form("get"):
+                current_date = st.date_input(
+                    "Data a duplicar",
+                    st.session_state.current_date,
+                    format="DD/MM/YYYY",
+                )
+                st.form_submit_button("Duplicar despeses", icon=":material/add:")
+        else:
+            nom = st.text_input("Concepte de la despesa")
+            col1, col2 = st.columns(2)
+            with col1:
+                total = st.number_input("Total (€)", min_value=1, step=1)
+            with col2:
+                tipus_list = set(EXPENSE_TYPES.keys()) - set(["estalvi"])
+                tipus_list = list(map(str.capitalize, tipus_list))
+                tipus = st.selectbox("category", tipus_list).lower()
 
-        if add and nom and total > 0 and tipus:
-            new_cost = {"nom": nom.capitalize(), "total": total, "tipus": tipus}
-            st.session_state.expenses_df = pd.concat(
-                [st.session_state.expenses_df, pd.DataFrame([new_cost])],
-                ignore_index=True,
-            )
-            common.export_csv(
-                st.session_state.expenses_df, st.session_state.expenses_filepath
-            )  # Guardar datos en CSV
-            st.success("¡Gasto agregado!")
-        elif add and nom == "":
-            st.error("Has d'introduir un concepte")
+            add = st.form_submit_button("Afegir", type="primary", icon=":material/add:")
+
+            if add and nom and total > 0 and tipus:
+                st.session_state.db.add_expense(
+                    username=st.session_state.username,
+                    date=st.session_state.current_date,
+                    concept=nom.capitalize(),
+                    amount=total,
+                    category=tipus,
+                    description="None",
+                )
+                st.success("Despesa afegida!")
+                st.rerun()
+            elif add and nom == "":
+                st.error("Has d'introduir un concepte")
 
 
 def drop_expense():
     expenses_df = st.session_state.expenses_df
-    with st.form("remove_despesa"):
-        st.subheader("❌ Eliminar Despesa", divider="red")
-        conceptes = set(expenses_df["nom"].unique())
-        concepte = st.selectbox("Conceptes", conceptes).lower()
-        drop = st.form_submit_button(
-            "Eliminar", type="primary", icon=":material/delete:"
-        )
+    conceptes = set({}) | set(expenses_df["concept"].unique())
+    if conceptes != set({}):
+        with st.form("remove_despesa"):
+            st.subheader("❌ Eliminar Despesa", divider="red")
+            concepte = st.selectbox("Conceptes", conceptes).lower()
+            drop = st.form_submit_button(
+                "Eliminar", type="primary", icon=":material/delete:"
+            )
 
-        if drop and concepte:
-            updated_df = expenses_df.loc[expenses_df["nom"].str.lower() != concepte]
-            removed = len(expenses_df) - len(updated_df)
-            expenses_df = updated_df
-            common.export_csv(
-                expenses_df, st.session_state.expenses_filepath
-            )  # Guardar datos en CSV
-            st.success(f"S'han eliminat {removed} despeses!")
-        elif drop and concepte == "":
-            st.error("Has de seleccionar un concepte")
+            if drop and concepte:
+                # updated_df = expenses_df.loc[expenses_df["concept"].str.lower() != concepte]
+                # removed = len(expenses_df) - len(updated_df)
+                # expenses_df = updated_df
+                # common.export_csv(
+                #    expenses_df, st.session_state.expenses_filepath
+                # )  # Guardar datos en CSV
+                st.session_state.db.delete_expense(
+                    username=st.session_state.username,
+                    concept=concepte.lower(),
+                )
+                st.success(f"S'han eliminat {concepte} despeses!")
+                st.rerun()
+            elif drop and concepte == "":
+                st.error("Has de seleccionar un concepte")
+    else:
+        st.subheader("❌ Eliminar Despesa", divider="red")
+        st.write("Encara no hi ha despeses")
 
 
 def modify_expenses():
     st.header(":material/edit: Modificar despeses", divider="rainbow")
-    # Formulario para ingresar gastos
     col1, col2 = st.columns(2)
     with col1:
         add_expense()
@@ -441,41 +524,37 @@ def show():
     # Title
     st.title("❤️ Salut Econòmica")
 
-    # Select Month
-    col1, col2 = st.columns(2)
-    with col1:
-        current_date = st.date_input(
-            "Quin mes vols mirar?", st.session_state.current_date, format="DD/MM/YYYY"
-        )
-        st.session_state.current_month = common.get_month_name(
-            current_date.month
-        ).capitalize()
-        st.session_state.current_year = current_date.year
-    with col2:
-        salary = st.number_input(
-            "Salari d'aquest mes?",
-            key="salary",
-            value=1000,
-            placeholder="Insereix el teu salari",
-            step=100,
-        )
+    if st.session_state.username:
+        # Select Month
+        col1, col2 = st.columns(2)
+        with col1:
+            current_date = st.date_input(
+                "Quin mes vols mirar?",
+                st.session_state.current_date,
+                format="DD/MM/YYYY",
+            )
+            st.session_state.current_month = common.get_month_name(
+                current_date.month
+            ).capitalize()
+            st.session_state.current_year = current_date.year
+        with col2:
+            salary = st.number_input(
+                "Salari d'aquest mes?",
+                key="salary",
+                value=1000,
+                placeholder="Insereix el teu salari",
+                step=100,
+            )
 
-    # Load Data
-    load_data(current_date, create=None)
+        # Load Data
+        load_data(current_date, create=None)
 
-    if st.session_state.expenses_df is None:
-        st.error("No hi ha full de despeses per aquest mes")
-        if st.button(
-            "Crear nou full de despeses",
-            icon=":material/add:",
-            use_container_width=True,
-            type="primary",
-        ):
-            new_expenses_sheet()
-    else:
+        # Show sections
         summary()
         details()
         modify_expenses()
+    else:
+        st.write("Inicia sessió per a veure la teva informació.")
 
 
 show()
