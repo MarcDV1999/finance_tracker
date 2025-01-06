@@ -358,7 +358,10 @@ def duplicate_expenses():
             st.session_state.current_date,
             format="DD/MM/YYYY",
         )
-        st.button("Duplicar despeses", icon=":material/add:")
+        duplicate = st.button("Duplicar despeses", icon=":material/add:")
+
+        if duplicate:
+            pass
 
 
 def add_expense():

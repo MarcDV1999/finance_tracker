@@ -54,7 +54,7 @@ class DatabaseManager:
         concept: str,
         amount: float,
         category: str,
-        description: str | None = None,
+        description: str = "",
     ):
         """Add an expense for a specific user."""
         session = self.Session()
@@ -68,10 +68,10 @@ class DatabaseManager:
             expense = Expense(
                 user_id=user.id,
                 date=date,
-                concept=concept,
+                concept=concept.capitalize(),
                 amount=amount,
-                category=category,
-                description=description,
+                category=category.lower(),
+                description=description.capitalize(),
             )
             session.add(expense)
             session.commit()
@@ -235,7 +235,7 @@ class DatabaseManager:
             # (concepto = category o description)
             expense = (
                 session.query(Expense)
-                .filter_by(user_id=user.id, category=concept)
+                .filter_by(user_id=user.id, concept=concept.capitalize())
                 .first()
             )
 
