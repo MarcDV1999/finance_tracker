@@ -1,5 +1,4 @@
 from datetime import date
-from pathlib import Path
 
 import pandas as pd
 import plotly.express as px
@@ -81,101 +80,6 @@ def load_data(current_date: date, create: None | str = "empty"):
         st.session_state.prev_month_name = None
         st.session_state.prev_year = None
         st.session_state.prev_date = None
-
-    # Create expenses sheet
-
-    print(st.session_state.expenses_df)
-    print(st.session_state.prev_expenses_df)
-    print()
-    print()
-
-
-def load_data2(current_date: date, create: None | str = "empty"):
-    """
-    Loads and initializes session data for expense tracking.
-
-    Parameters
-    ----------
-    current_date : date
-        The current date for which expense data should be loaded.
-    create : str or None, optional
-        Specifies the action to take if no expense file exists for the current date.
-        Options include:
-        - "empty" (default): Create an empty file.
-        - "duplicate": Duplicate data from the previous month.
-        - None: Do not create any file.
-
-    Notes
-    -----
-    Updates the Streamlit session state with the following:
-    - Previous expenses filepath and associated metadata.
-    - Current expenses filepath and associated metadata.
-    - Loads the corresponding DataFrames into session state.
-    """
-    # Fetch the previous expenses file and metadata.
-    prev_expenses_filepath, prev_date = common.get_previous_file(
-        current_date, "expenses.csv"
-    )
-
-    # Update session state with previous file data.
-    st.session_state.prev_expenses_filepath = prev_expenses_filepath
-    st.session_state.prev_date = prev_date
-    st.session_state.prev_year = str(prev_date.year) if prev_date else None
-    st.session_state.prev_month_name = (
-        common.get_month_name(prev_date.month) if prev_date else None
-    )
-
-    # Load the previous expenses DataFrame if it exists.
-    if isinstance(prev_expenses_filepath, Path) and prev_expenses_filepath.exists():
-        st.session_state.prev_expenses_df = common.load_csv(
-            filepath=prev_expenses_filepath
-        )
-        st.session_state.prev_expenses_df = prep_expenses_df(
-            st.session_state.prev_expenses_df
-        )
-    else:
-        # Initialize an empty DataFrame if no previous expenses are found.
-        st.session_state.prev_expenses_df = pd.DataFrame(
-            columns=["concept", "amount", "category"]
-        )
-        st.toast("No hi ha despeses de mesos passats!", icon=":material/warning:")
-
-    # Load the current expenses file.
-    expenses_filepath = common.load_file(current_date, filename="expenses.csv")
-
-    # Update session state with current file data.
-    st.session_state.expenses_filepath = expenses_filepath
-    st.session_state.current_date = current_date
-    st.session_state.current_year = str(current_date.year)
-    st.session_state.current_month_name = common.get_month_name(current_date.month)
-
-    # Load or initialize the current expenses DataFrame based on file existence.
-    if st.session_state.expenses_filepath.exists():
-        logger_all.info(f"Existeix la data {st.session_state.expenses_filepath}")
-        st.session_state.expenses_df = common.load_csv(filepath=expenses_filepath)
-        st.session_state.expenses_df = prep_expenses_df(st.session_state.expenses_df)
-    elif create is None:
-        logger_all.info("No es crea")
-        st.session_state.expenses_df = None
-    elif create == "empty":
-        logger_all.info("Es crea buit")
-        st.session_state.expenses_df = pd.DataFrame(
-            columns=["concept", "amount", "category"]
-        )
-        common.export_csv(st.session_state.expenses_df, expenses_filepath)
-        st.toast("S'ha creat un nou full de despeses buit", icon=":material/info:")
-    elif create == "duplicate" and prev_expenses_filepath.exists():
-        logger_all.info(f"Es duplica de {prev_expenses_filepath}")
-        st.session_state.expenses_df = common.load_csv(filepath=prev_expenses_filepath)
-        st.session_state.expenses_df = prep_expenses_df(st.session_state.expenses_df)
-        common.export_csv(st.session_state.expenses_df, expenses_filepath)
-        st.toast(
-            f"S'ha creat un nou full de despeses basat en el mes de "
-            f"{st.session_state.prev_month_name} de {st.session_state.prev_year}",
-            icon=":material/info:",
-        )
-    else:
-        logger_all.error("No s'ha pogut carregar les despeses del mes seleccionat")
 
 
 def plot_health(df: pd.DataFrame, salary: int):
@@ -439,65 +343,80 @@ def details():
         show_editable_df(st.session_state.expenses_df, tipus="microestalvi")
 
 
+def duplicate_expenses():
+    st.subheader("📋 Duplicar Despeses", divider="violet")
+    st.markdown(
+        """
+        Amb aquest formulari tindràs l'opció de duplicar
+        les despeses d'un altre mes.
+        """
+    )
+    with st.container(border=True):
+        # Formulario para ingresar gastos
+        current_date = st.date_input(
+            "Data a duplicar",
+            st.session_state.current_date,
+            format="DD/MM/YYYY",
+        )
+        st.button("Duplicar despeses", icon=":material/add:")
+
+
 def add_expense():
-    with st.form("add_despesa"):
-        st.subheader("🆕 Afegir Despesa", divider="green")
-        on = st.toggle("Duplicar mes sencer")
+    st.subheader("🆕 Afegir Despeses", divider="green")
+    st.markdown(
+        """
+        Amb aquest formulari tindràs l'opció d'afegir
+        noves despeses. Per fer-ho tens dos opcions:
 
-        if on:
-            # Formulario para ingresar gastos
-            with st.form("get"):
-                current_date = st.date_input(
-                    "Data a duplicar",
-                    st.session_state.current_date,
-                    format="DD/MM/YYYY",
-                )
-                st.form_submit_button("Duplicar despeses", icon=":material/add:")
-        else:
-            nom = st.text_input("Concepte de la despesa")
-            col1, col2 = st.columns(2)
-            with col1:
-                total = st.number_input("Total (€)", min_value=1, step=1)
-            with col2:
-                tipus_list = set(EXPENSE_TYPES.keys()) - set(["estalvi"])
-                tipus_list = list(map(str.capitalize, tipus_list))
-                tipus = st.selectbox("category", tipus_list).lower()
+        - Duplicar les despeses d'un altre mes: Copiar
+        i enganxar totes les despeses d'un altre mes.
+        - Afegir despesa: Afegir una única despesa.
+        """
+    )
+    nom = st.text_input("Concepte de la despesa")
+    col1, col2 = st.columns(2)
+    with col1:
+        total = st.number_input("Total (€)", min_value=1, step=1)
+    with col2:
+        tipus_list = set(EXPENSE_TYPES.keys()) - set(["estalvi"])
+        tipus_list = list(map(str.capitalize, tipus_list))
+        tipus = st.selectbox("category", tipus_list).lower()
 
-            add = st.form_submit_button("Afegir", type="primary", icon=":material/add:")
+    add = st.button("Afegir", type="primary", icon=":material/add:")
 
-            if add and nom and total > 0 and tipus:
-                st.session_state.db.add_expense(
-                    username=st.session_state.username,
-                    date=st.session_state.current_date,
-                    concept=nom.capitalize(),
-                    amount=total,
-                    category=tipus,
-                    description="None",
-                )
-                st.success("Despesa afegida!")
-                st.rerun()
-            elif add and nom == "":
-                st.error("Has d'introduir un concepte")
+    if add and nom and total > 0 and tipus:
+        st.session_state.db.add_expense(
+            username=st.session_state.username,
+            date=st.session_state.current_date,
+            concept=nom.capitalize(),
+            amount=total,
+            category=tipus,
+            description="None",
+        )
+        st.success("Despesa afegida!")
+        st.rerun()
+    elif add and nom == "":
+        st.error("Has d'introduir un concepte")
 
 
 def drop_expense():
+    st.subheader("❌ Eliminar Despesa", divider="red")
+    st.markdown(
+        """
+        Amb aquest formulari tindràs l'opció d'el·liminar
+        despeses existents. Per fer-ho, només cal que
+        seleccionis el concepte de la despesa que vols
+        esborrar.
+        """
+    )
     expenses_df = st.session_state.expenses_df
     conceptes = set({}) | set(expenses_df["concept"].unique())
     if conceptes != set({}):
-        with st.form("remove_despesa"):
-            st.subheader("❌ Eliminar Despesa", divider="red")
+        with st.container(border=True):
             concepte = st.selectbox("Conceptes", conceptes).lower()
-            drop = st.form_submit_button(
-                "Eliminar", type="primary", icon=":material/delete:"
-            )
+            drop = st.button("Eliminar", type="primary", icon=":material/delete:")
 
             if drop and concepte:
-                # updated_df = expenses_df.loc[expenses_df["concept"].str.lower() != concepte]
-                # removed = len(expenses_df) - len(updated_df)
-                # expenses_df = updated_df
-                # common.export_csv(
-                #    expenses_df, st.session_state.expenses_filepath
-                # )  # Guardar datos en CSV
                 st.session_state.db.delete_expense(
                     username=st.session_state.username,
                     concept=concepte.lower(),
@@ -512,12 +431,23 @@ def drop_expense():
 
 
 def modify_expenses():
-    st.header(":material/edit: Modificar despeses", divider="rainbow")
-    col1, col2 = st.columns(2)
-    with col1:
+    st.header("🖍️ Modificar despeses", divider="rainbow")
+    st.markdown(
+        """
+    En aquesta secció podràs realitzar modificacions a
+    les despeses de les seccions anteriors.
+    """
+    )
+    add_tab, drop_tab, duplicate_tab = st.tabs(
+        ["➕ Afegir", "❌ Eliminar", ":material/file_copy: Duplicar"]
+    )
+    # col1, col2 = st.columns(2)
+    with add_tab:
         add_expense()
-    with col2:
+    with drop_tab:
         drop_expense()
+    with duplicate_tab:
+        duplicate_expenses()
 
 
 def show():
